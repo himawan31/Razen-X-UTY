@@ -18,7 +18,6 @@ return new class extends Migration
             $table->string('price')->nullable();
             $table->string('location')->nullable();
             $table->string('status')->nullable();
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->timestamps();
         });
     }
