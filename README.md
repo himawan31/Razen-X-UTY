@@ -43,7 +43,8 @@ Sistem ini dibuat untuk memudahkan proses jual beli properti secara online. Terd
 
 - Autentikasi (Registrasi & Login)
 - Tambah data property
-
+- Edit data property
+- Hapus data property
 ## 🙌 Developer
 
 🧑‍💻 Himawan Kurnia Eli Santo  
