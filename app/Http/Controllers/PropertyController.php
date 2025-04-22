@@ -13,7 +13,7 @@ class PropertyController extends Controller
      */
     public function index()
     {
-        $properties = Property::all();
+        $properties = Property::with('images_url')->get();
         return view('dashboard', compact('properties'));
     }
 
@@ -37,6 +37,7 @@ class PropertyController extends Controller
             'location' => 'required|string|max:255',
             'status' => 'nullable|string|in:available,sold,rented',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'document' => 'nullable|file|mimes:pdf|max:5120', // maksimal 5MB
         ]);
 
         try {
@@ -46,25 +47,35 @@ class PropertyController extends Controller
             $property->description = $request->input('description');
             $property->price = $request->input('price');
             $property->location = $request->input('location');
-            $property->status = $request->input('status', 'available'); 
+            $property->status = $request->input('status', 'available');
             $property->save();
 
             // Simpan gambar jika ada
             if ($request->hasFile('image')) {
                 $imageUrl = $request->file('image')->store('properties', 'public');
-                $property->image_path = str_replace('public/','',$imageUrl); // Simpan path gambar ke properti
-
-                // Simpan informasi gambar ke tabel property_image
                 $property->images()->create([
                     'image_url' => $imageUrl,
-                    'property_id' => $property->id, // Asumsi ada relasi property_id di tabel property_image
+                    'property_id' => $property->id,
                 ]);
             }
+
+            // Simpan dokumen PDF jika ada
+            if ($request->hasFile('document')) {
+                $documentPath = $request->file('document')->store('documents', 'public');
+            
+                $property->documents()->create([
+                    'document_url' => $documentPath,
+                    'document_type' => 'sertifikat'
+                ]);
+            }
+
         } catch (\Exception $e) {
             return redirect()->back()->withErrors(['error' => 'Failed to create property: ' . $e->getMessage()]);
         }
+
         return redirect()->route('properties.index')->with('success', 'Property created successfully.');
     }
+
 
     /**
      * Display the specified resource.
@@ -95,35 +106,52 @@ class PropertyController extends Controller
             'price' => 'required|numeric',
             'location' => 'required|string|max:255',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'document' => 'nullable|file|mimes:pdf|max:5120', // max 5MB
         ]);
 
         $property = Property::findOrFail($id);
-        $property->title = $request->input('title');
-        $property->description = $request->input('description');
-        $property->price = $request->input('price');
-        $property->location = $request->input('location');
-        $property->save(); // Simpan data properti terlebih dahulu
 
+        $property->update([
+            'title' => $request->title,
+            'description' => $request->description,
+            'price' => $request->price,
+            'location' => $request->location,
+        ]);
+
+        // Update gambar jika ada
         if ($request->hasFile('image')) {
-            // Hapus gambar lama jika ada
-            $oldImages = $property->images; // Ambil semua gambar lama
-            foreach ($oldImages as $image) {
-                if (!is_null($image->image_path)) { // Periksa apakah image_path tidak null
-                    Storage::disk('public')->delete($image->image_path); // Hapus gambar dari storage
-                    $image->delete(); // Hapus entri gambar dari tabel property_images
-                }
+            // Hapus gambar lama
+            foreach ($property->images_url as $image) {
+                Storage::disk('public')->delete($image->image_url);
+                $image->delete();
             }
-        
-            // Simpan gambar baru ke tabel property_images
+
+            // Simpan gambar baru
             $imagePath = $request->file('image')->store('properties', 'public');
-            $property->images()->create([
+            $property->images_url()->create([
                 'image_url' => $imagePath,
-                'property_id' => $property->id, // Asumsi ada relasi property_id di tabel property_images
+            ]);
+        }
+
+        // Update dokumen jika ada
+        if ($request->hasFile('document')) {
+            // Hapus dokumen lama
+            foreach ($property->documents as $doc) {
+                Storage::disk('public')->delete($doc->document_url);
+                $doc->delete();
+            }
+
+            // Simpan dokumen baru
+            $documentPath = $request->file('document')->store('documents', 'public');
+            $property->documents()->create([
+                'document_type' => 'sertifikat',
+                'document_url' => $documentPath,
             ]);
         }
 
         return redirect()->route('properties.index')->with('success', 'Property updated successfully.');
     }
+
 
     /**
      * Remove the specified resource from storage.
@@ -131,9 +159,14 @@ class PropertyController extends Controller
     public function destroy(string $id)
     {
         $property = Property::findOrFail($id);
-        if ($property->image_path) {
-            Storage::disk('public')->delete($property->image_path);
+
+        foreach ($property->images as $image) {
+            if ($image->image_url && Storage::disk('public')->exists($image->image_url)) {
+                Storage::disk('public')->delete($image->image_url);
+            }
+            $image->delete(); 
         }
+
         $property->delete();
 
         return redirect()->route('properties.index')->with('success', 'Property deleted successfully.');

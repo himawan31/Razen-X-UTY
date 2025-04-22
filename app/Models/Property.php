@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\PropertyImage;
 
 class Property extends Model
 {
@@ -19,9 +20,16 @@ class Property extends Model
     {
         return $this->belongsTo(User::class);
     }
+    public function images_url()
+    {
+        return $this->hasMany(PropertyImage::class, 'property_id', 'id');
+    }
     public function images()
     {
         return $this->hasMany(PropertyImage::class);
     }
-    
+    public function documents()
+    {
+        return $this->hasMany(Document::class);
+    }
 }

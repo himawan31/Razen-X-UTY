@@ -39,11 +39,41 @@
             <input type="text" name="location" id="location" value="{{ $property->location }}" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
         </div>
 
-        <img src="{{ asset('storage/' . $property->image_url) }}" alt="Foto Property" style="width: 730px; height: 300px;">
+        <p class="text-gray-700 font-semibold">Gambar Saat Ini:</p>
+
+        @if($property->images_url->isNotEmpty())
+            <img src="{{ Storage::url($property->images_url->first()->image_url) }}" alt="Foto Properti" style="max-width: 730px; height: 200px;">
+        @else
+            N/A
+        @endif
+
+        <br>
 
         <div class="mb-4">
-            <label class="block text-gray-700 text-sm font-bold mb-2" for="image">Gambar</label>
+            <label class="block text-gray-700 text-sm font-bold mb-2" for="image">Upload Gambar Baru</label>
             <input type="file" name="image" id="image" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+        </div>
+
+        {{-- Dokumen saat ini (jika ada) --}}
+        @if($property->documents->isNotEmpty())
+            <div class="mb-4">
+                <p class="text-gray-700 font-semibold">Dokumen Saat Ini:</p>
+                <ul class="list-disc ml-6">
+                    @foreach($property->documents as $document)
+                        <li>
+                            <a href="{{ Storage::url($document->document_url) }}" target="_blank" class="text-blue-600 underline">
+                                {{ $document->document_type }} (Lihat Dokumen)
+                            </a>
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
+        <div class="mb-4">
+            <label class="block text-gray-700 text-sm font-bold mb-2" for="document">Upload Dokumen Baru (PDF)</label>
+            <input type="file" name="document" id="document" accept="application/pdf" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+            <p class="text-sm text-gray-500 mt-1">Maksimal 5MB. File sebelumnya akan diganti.</p>
         </div>
 
         <div class="flex items-center justify-between">
@@ -52,5 +82,7 @@
             </button>
         </div>
     </form>
+
+    <a href="{{ route('dashboard') }}" class="text-blue-500 hover:underline">Kembali</a>
 </div>
 @endsection
