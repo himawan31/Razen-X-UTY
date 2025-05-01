@@ -41,10 +41,12 @@ Sistem ini dibuat untuk memudahkan proses jual beli properti secara online. Terd
 
 ## ✅ Fitur yang telah tersedia
 
-- Autentikasi (Registrasi & Login)
-- Tambah data property
-- Edit data property
-- Hapus data property
+- Autentikasi (Registrasi, Login, Lupa kata sandi, dan Reset kata sandi)
+- Kelola data property (Tambah, Edit, Hapus)
+- Favorit
+
+---
+  
 ## 🙌 Developer
 
 🧑‍💻 Himawan Kurnia Eli Santo  
