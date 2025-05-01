@@ -2,20 +2,34 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Auth;
+use App\Models\PropertyImage;
+use Illuminate\Http\Request;
 use App\Models\Property;
+use App\Models\Document;
+use App\Models\User;
+use App\Models\Favorites;
 
 class PropertyController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function indexDashboard()
     {
         $properties = Property::with('images_url')->get();
         return view('dashboard', compact('properties'));
     }
+
+    public function indexHome()
+    {
+        $properties = Property::with('images_url')->get();
+        $favorites = auth()->check() ? auth()->user()->favorites->pluck('id')->toArray() : [];
+
+        return view('home', compact('properties', 'favorites'));
+    }
+
 
     /**
      * Show the form for creating a new resource.
@@ -37,11 +51,10 @@ class PropertyController extends Controller
             'location' => 'required|string|max:255',
             'status' => 'nullable|string|in:available,sold,rented',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'document' => 'nullable|file|mimes:pdf|max:5120', // maksimal 5MB
+            'document' => 'nullable|file|mimes:pdf|max:5120',
         ]);
 
         try {
-            // Simpan data properti
             $property = new Property();
             $property->title = $request->input('title');
             $property->description = $request->input('description');
@@ -50,7 +63,6 @@ class PropertyController extends Controller
             $property->status = $request->input('status', 'available');
             $property->save();
 
-            // Simpan gambar jika ada
             if ($request->hasFile('image')) {
                 $imageUrl = $request->file('image')->store('properties', 'public');
                 $property->images()->create([
@@ -59,7 +71,6 @@ class PropertyController extends Controller
                 ]);
             }
 
-            // Simpan dokumen PDF jika ada
             if ($request->hasFile('document')) {
                 $documentPath = $request->file('document')->store('documents', 'public');
             
@@ -83,7 +94,14 @@ class PropertyController extends Controller
     public function show(string $id)
     {
         $property = Property::findOrFail($id);
-        return view('properties.show', compact('property'));
+        return view('properties.detail', compact('property'));
+    }
+
+    public function detailProperty(string $id)
+    {
+        $property = Property::findOrFail($id);
+        $favorites = auth()->check() ? auth()->user()->favorites->pluck('id')->toArray() : [];
+        return view('detail_user', compact('property', 'favorites'));
     }
 
     /**
@@ -118,30 +136,24 @@ class PropertyController extends Controller
             'location' => $request->location,
         ]);
 
-        // Update gambar jika ada
         if ($request->hasFile('image')) {
-            // Hapus gambar lama
             foreach ($property->images_url as $image) {
                 Storage::disk('public')->delete($image->image_url);
                 $image->delete();
             }
 
-            // Simpan gambar baru
             $imagePath = $request->file('image')->store('properties', 'public');
             $property->images_url()->create([
                 'image_url' => $imagePath,
             ]);
         }
 
-        // Update dokumen jika ada
         if ($request->hasFile('document')) {
-            // Hapus dokumen lama
             foreach ($property->documents as $doc) {
                 Storage::disk('public')->delete($doc->document_url);
                 $doc->delete();
             }
 
-            // Simpan dokumen baru
             $documentPath = $request->file('document')->store('documents', 'public');
             $property->documents()->create([
                 'document_type' => 'sertifikat',
@@ -170,5 +182,35 @@ class PropertyController extends Controller
         $property->delete();
 
         return redirect()->route('properties.index')->with('success', 'Property deleted successfully.');
+    }
+
+    public function indexFavorites()
+    {
+        $user = auth()->user();
+        $favorites = $user->favorites()->get(); // ambil property favorit user ini
+        return view('favorites', compact('favorites'));
+    }
+
+    public function addToFavorites(Request $request, string $id)
+    {
+        $user = auth()->user();
+        $user->favorites()->syncWithoutDetaching([$id]); // tambah tanpa duplikat
+
+        return redirect()->back()->with('success', 'Property favorited successfully.');
+    }
+
+    public function removeFromFavorites(string $id)
+    {
+        $user = auth()->user();
+        $user->favorites()->detach($id);
+
+        return redirect()->back()->with('success', 'Property removed from favorites successfully.');
+    }
+
+    public function showPropertyDetail(string $id)
+    {
+        $property = Property::findOrFail($id);
+        $isFavorite = auth()->user()->favorites->contains($property->id);
+        return view('properties.detail', compact('property', 'isFavorite'));
     }
 }
